@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="heapview:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/heapview_jar</output-path>
+    <root id="archive" name="heapview_jar.jar">
+      <element id="archive" name="heapview.jar">
+        <element id="module-output" name="heapview" />
+      </element>
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/src/main/java/META-INF/MANIFEST.MF" />
+      </element>
+    </root>
+  </artifact>
+</component>

@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="war" build-on-make="true" name="heapview:war">
+    <output-path>$PROJECT_DIR$/out/artifacts/heapview_war</output-path>
+    <root id="archive" name="heapview_war.war">
+      <element id="artifact" artifact-name="heapview:war exploded" />
+    </root>
+  </artifact>
+</component>
