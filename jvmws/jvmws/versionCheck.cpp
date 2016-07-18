@@ -56,39 +56,24 @@ static GlobalAgentData* gdata;
 
 typedef struct Tag
 {
-	jint jvmti_heap_reference_class;
-	jint jvmti_heap_reference_field;
-	jint jvmti_heap_reference_array_element;
-	jint jvmti_heap_reference_class_loader;
-	jint jvmti_heap_reference_signers;
-	jint jvmti_heap_reference_protection_domain;
-	jint jvmti_heap_reference_interface;
-	jint jvmti_heap_reference_static_field;
-	jint jvmti_heap_reference_constant_pool;
-	jint jvmti_heap_reference_superclass;
-	jint jvmti_heap_reference_jni_global;
-	jint jvmti_heap_reference_system_class;
-	jint jvmti_heap_reference_monitor;
-	jint jvmti_heap_reference_stack_local;
-	jint jvmti_heap_reference_jni_local;
-	jint jvmti_heap_reference_thread;
-	jint jvmti_heap_reference_other;
+	jmethodID method;
+	jint count;
 } Tag;
 
 
-typedef struct StackLocalReference 
+typedef struct StackLocalReference
 {
 	jmethodID methodId;
-
 } StackLocalReference;
 
 
 //static char* gClassName = "sun/misc/Launcher$AppClassLoader";
 static char* gClassName = "org/zheltkov/heapview/Heapview";
 
+//static char* gClassName = "com/ibm/jvm/ClassLoader";
+
 /* Create major.minor.micro version string */
-static void
-version_check(jint cver, jint rver)
+static void version_check(jint cver, jint rver)
 {
 	jint cmajor, cminor, cmicro;
 	jint rmajor, rminor, rmicro;
@@ -110,8 +95,7 @@ version_check(jint cver, jint rver)
 }
 
 /* Callback for JVMTI_EVENT_VM_INIT */
-static void JNICALL
-vm_init(jvmtiEnv* jvmti, JNIEnv* env, jthread thread)
+static void JNICALL vm_init(jvmtiEnv* jvmti, JNIEnv* env, jthread thread)
 {
 	jvmtiError err;
 	jint runtime_version;
@@ -126,8 +110,7 @@ vm_init(jvmtiEnv* jvmti, JNIEnv* env, jthread thread)
 	version_check(JVMTI_VERSION, runtime_version);
 }
 
-static jint JNICALL
-followReferenceCallback(
+static jint JNICALL cbHeapReference(
 	jvmtiHeapReferenceKind reference_kind,
 	const jvmtiHeapReferenceInfo* reference_info,
 	jlong class_tag,
@@ -138,90 +121,78 @@ followReferenceCallback(
 	jint length,
 	void* user_data)
 {
+	stdout_message("heap1.1 cbHeapReference\n");
+
 	auto t = static_cast<Tag*>(user_data);
 
 	switch (reference_kind)
 	{
 	case JVMTI_HEAP_REFERENCE_CLASS:
 		stdout_message("JVMTI_HEAP_REFERENCE_CLASS %d\n", reference_info);
-		t->jvmti_heap_reference_class++;
 		break;
 	case JVMTI_HEAP_REFERENCE_FIELD:
-		
-		/* Referecnce field */
 
+		/* Referecnce field */
 		stdout_message("JVMTI_HEAP_REFERENCE_FIELD %d\n", reference_info->field);
-		t->jvmti_heap_reference_field++;
 		break;
 	case JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT:
 		stdout_message("JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT %d\n", reference_info);
-		t->jvmti_heap_reference_array_element++;
 		break;
 	case JVMTI_HEAP_REFERENCE_CLASS_LOADER:
 		stdout_message("JVMTI_HEAP_REFERENCE_CLASS_LOADER %d\n", reference_info);
-		t->jvmti_heap_reference_class_loader++;
 		break;
 	case JVMTI_HEAP_REFERENCE_SIGNERS:
 		stdout_message("JVMTI_HEAP_REFERENCE_SIGNERS %d\n", reference_info);
-		t->jvmti_heap_reference_signers++;
 		break;
 	case JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN:
 		stdout_message("JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN %d\n", reference_info);
-		t->jvmti_heap_reference_protection_domain++;
 		break;
 	case JVMTI_HEAP_REFERENCE_INTERFACE:
 		stdout_message("JVMTI_HEAP_REFERENCE_INTERFACE %d\n", reference_info);
-		t->jvmti_heap_reference_interface++;
 		break;
 	case JVMTI_HEAP_REFERENCE_STATIC_FIELD:
 
 		/* Referecnce static field */
 
 		stdout_message("JVMTI_HEAP_REFERENCE_STATIC_FIELD %d\n", reference_info->field.index);
-		t->jvmti_heap_reference_static_field++;
 		break;
 	case JVMTI_HEAP_REFERENCE_CONSTANT_POOL:
 		stdout_message("JVMTI_HEAP_REFERENCE_CONSTANT_POOL %d\n", reference_info->constant_pool.index);
-		t->jvmti_heap_reference_constant_pool++;
 		break;
 	case JVMTI_HEAP_REFERENCE_SUPERCLASS:
 		stdout_message("JVMTI_HEAP_REFERENCE_SUPERCLASS %d\n", reference_info);
-		t->jvmti_heap_reference_superclass++;
 		break;
 	case JVMTI_HEAP_REFERENCE_JNI_GLOBAL:
 		stdout_message("JVMTI_HEAP_REFERENCE_JNI_GLOBAL %d\n", reference_info);
-		t->jvmti_heap_reference_jni_global++;
 		break;
 	case JVMTI_HEAP_REFERENCE_SYSTEM_CLASS:
 		stdout_message("JVMTI_HEAP_REFERENCE_SYSTEM_CLASS %d\n", reference_info);
-		t->jvmti_heap_reference_system_class++;
 		break;
 	case JVMTI_HEAP_REFERENCE_MONITOR:
 		stdout_message("JVMTI_HEAP_REFERENCE_MONITOR %d\n", reference_info);
-		t->jvmti_heap_reference_monitor++;
 		break;
 	case JVMTI_HEAP_REFERENCE_STACK_LOCAL:
-		t->jvmti_heap_reference_stack_local++;
-		stdout_message("JVMTI_HEAP_REFERENCE_STACK_LOCAL %d\n", reference_info->stack_local);;
+		stdout_message("JVMTI_HEAP_REFERENCE_STACK_LOCAL %d\n", reference_info->stack_local.method);;
 		break;
 	case JVMTI_HEAP_REFERENCE_JNI_LOCAL:
 		stdout_message("JVMTI_HEAP_REFERENCE_JNI_LOCAL %s\n", reference_info->jni_local.method);
-		t->jvmti_heap_reference_jni_local++;
 		break;
 	case JVMTI_HEAP_REFERENCE_THREAD:
 		stdout_message("JVMTI_HEAP_REFERENCE_THREAD %d\n", reference_info);
-		t->jvmti_heap_reference_thread++;
 		break;
 	case JVMTI_HEAP_REFERENCE_OTHER:
 		stdout_message("JVMTI_HEAP_REFERENCE_OTHER %d\n", reference_info->other);
 		break;
+	case jvmtiHeapReferenceKindEnsureWideEnum:
+		stdout_message("jvmtiHeapReferenceKindEnsureWideEnum\n");
+		break;
+	default: break;
 	}
 
 	return JVMTI_VISIT_OBJECTS;
 }
 
-static jint JNICALL
-heapIterationCallback(
+static jint JNICALL cbHeapIteration(
 	jlong class_tag,
 	jlong size,
 	jlong* tag_ptr,
@@ -231,9 +202,239 @@ heapIterationCallback(
 	auto count = static_cast<int*>(user_data);
 	*count += 1;
 
+	stdout_message("cbHeapIteration: %d, %d, %d, %d, %d\n", *count, class_tag, size, tag_ptr, length);
+	auto t = new Tag();
+	*tag_ptr = (ptrdiff_t)(void*)&t;
+
 	return JVMTI_VISIT_OBJECTS;
 }
 
+static jint JNICALL cbPrimitivField(
+	jvmtiHeapReferenceKind reference_kind,
+	const jvmtiHeapReferenceInfo* referrer_info,
+	jlong class_tag,
+	jlong* tag_ptr,
+	jvalue value,
+	jvmtiPrimitiveType value_type,
+	void* user_data)
+{
+	stdout_message("primitiv field\n");
+
+	return JVMTI_VISIT_OBJECTS;
+}
+
+static jint JNICALL cbArrayPrimitiveValue(
+	jlong class_tag,
+	jlong size,
+	jlong* tag_ptr,
+	jint element_count,
+	jvmtiPrimitiveType element_type,
+	const void* elements,
+	void* user_data)
+{
+	stdout_message("array primitiv value\n");
+
+	return JVMTI_VISIT_OBJECTS;
+}
+
+static jint JNICALL cbStringPrimitiveValue(
+	jlong class_tag,
+	jlong size,
+	jlong* tag_ptr,
+	const jchar* value,
+	jint value_length,
+	void* user_data)
+{
+	stdout_message("string primitiv value\n");
+
+	return JVMTI_VISIT_OBJECTS;
+}
+
+/**
+ *   Heap 1.0 ?
+ *
+ **/
+static jvmtiIterationControl JNICALL heabObjectCallback(jlong class_tag, jlong size, jlong* tag_ptr, void* user_data)
+{
+	auto count = static_cast<int*>(user_data);
+	*count += 1;	
+
+	stdout_message("obj old tag %d\n", *tag_ptr);
+
+	auto t = new Tag();
+	t->count = *count;
+
+	*tag_ptr = (jlong)(ptrdiff_t)(void*)&t;
+
+	stdout_message("obj new tag %d\n\n\n", *tag_ptr);
+	stdout_message("Callback            Heap Object: instance count: %d; tag_ptr: %d; size: %d; class_tag: %d;\n", *count, *tag_ptr, size, class_tag);
+
+	return JVMTI_ITERATION_CONTINUE;
+}
+
+static jvmtiIterationControl JNICALL heapRootCallback(jvmtiHeapRootKind root_kind, jlong class_tag, jlong size, jlong* tag_ptr, void* user_data)
+{
+	if (*tag_ptr == 0 && class_tag == 0) 
+	{
+		return JVMTI_ITERATION_CONTINUE;
+	}
+
+	char * root_kind_str;
+
+	switch (root_kind)
+	{
+	case JVMTI_HEAP_ROOT_JNI_GLOBAL: 
+		root_kind_str = "JVMTI_HEAP_ROOT_JNI_GLOBAL";  
+		break;
+	case JVMTI_HEAP_ROOT_SYSTEM_CLASS: 
+		root_kind_str = "JVMTI_HEAP_ROOT_SYSTEM_CLASS"; 
+		break;
+	case JVMTI_HEAP_ROOT_MONITOR: 
+		root_kind_str = "JVMTI_HEAP_ROOT_MONITOR"; 
+		break;
+	case JVMTI_HEAP_ROOT_STACK_LOCAL: 
+		root_kind_str = "JVMTI_HEAP_ROOT_STACK_LOCAL"; 
+		break;
+	case JVMTI_HEAP_ROOT_JNI_LOCAL: 
+		root_kind_str = "JVMTI_HEAP_ROOT_JNI_LOCAL"; 
+		break;
+	case JVMTI_HEAP_ROOT_THREAD:
+		root_kind_str = "JVMTI_HEAP_ROOT_THREAD"; 
+		break;
+	case JVMTI_HEAP_ROOT_OTHER:
+		root_kind_str = "JVMTI_HEAP_ROOT_OTHER"; 
+		break;
+	case jvmtiHeapRootKindEnsureWideEnum:
+		root_kind_str = "jvmtiHeapRootKindEnsureWideEnum"; 
+		break;
+	default: break;
+	}
+
+	stdout_message("Callback              Heap Root: class_tag: %8d; size: %3d; tag_ptr: %d; kind: %s\n", class_tag, size, *tag_ptr, root_kind_str);
+	
+	return JVMTI_ITERATION_CONTINUE;
+}
+
+static jvmtiIterationControl JNICALL stackReferenceCallback(jvmtiHeapRootKind root_kind, jlong class_tag, jlong size, jlong* tag_ptr, jlong thread_tag, jint depth, jmethodID method, jint slot, void* user_data)
+{
+	if (*tag_ptr == 0 && class_tag == 0 && ((jint)method) < 0 && thread_tag == 0) 
+	{
+		return JVMTI_ITERATION_CONTINUE;
+	}
+
+	char * root_kind_str;
+
+	switch (root_kind)
+	{
+	case JVMTI_HEAP_ROOT_JNI_GLOBAL: 
+		root_kind_str = "JVMTI_HEAP_ROOT_JNI_GLOBAL";  
+		break;
+	case JVMTI_HEAP_ROOT_SYSTEM_CLASS: 
+		root_kind_str = "JVMTI_HEAP_ROOT_SYSTEM_CLASS"; 
+		break;
+	case JVMTI_HEAP_ROOT_MONITOR: 
+		root_kind_str = "JVMTI_HEAP_ROOT_MONITOR"; 
+		break;
+	case JVMTI_HEAP_ROOT_STACK_LOCAL: 
+		root_kind_str = "JVMTI_HEAP_ROOT_STACK_LOCAL"; 
+		break;
+	case JVMTI_HEAP_ROOT_JNI_LOCAL: 
+		root_kind_str = "JVMTI_HEAP_ROOT_JNI_LOCAL"; 
+		break;
+	case JVMTI_HEAP_ROOT_THREAD:
+		root_kind_str = "JVMTI_HEAP_ROOT_THREAD"; 
+		break;
+	case JVMTI_HEAP_ROOT_OTHER:
+		root_kind_str = "JVMTI_HEAP_ROOT_OTHER"; 
+		break;
+	case jvmtiHeapRootKindEnsureWideEnum:
+		root_kind_str = "jvmtiHeapRootKindEnsureWideEnum"; 
+		break;
+	default:
+		root_kind_str = "def"; 
+		break;
+	}
+
+	stdout_message("Callback       Stack References: class_tag: %8d; size: %3d; tag_ptr: %8d; thread_tag: %d; depth: %2d; method: %9d; slot: %2d; kind: %s\n", class_tag, size, *tag_ptr, thread_tag, depth, method, slot, root_kind_str);
+	return JVMTI_ITERATION_CONTINUE;
+}
+
+static jvmtiIterationControl JNICALL heabObjectReferencesCallback(jvmtiObjectReferenceKind reference_kind, jlong class_tag, jlong size, jlong* tag_ptr, jlong referrer_tag, jint referrer_index, void* user_data)
+{
+	if (class_tag == 0 && *tag_ptr == 0 && referrer_tag == 0)
+	{
+		return JVMTI_ITERATION_CONTINUE;
+	}	
+
+	char* kind;
+
+ 	switch (reference_kind)
+	{
+	case JVMTI_HEAP_REFERENCE_CLASS:
+		kind = "JVMTI_HEAP_REFERENCE_CLASS";
+		break;
+	case JVMTI_HEAP_REFERENCE_FIELD: 
+		kind = "JVMTI_HEAP_REFERENCE_FIELD";
+		break;
+	case JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT:
+		kind = "JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT";
+		break;
+	case JVMTI_HEAP_REFERENCE_CLASS_LOADER:
+		kind = "JVMTI_HEAP_REFERENCE_CLASS_LOADER";
+		break;
+	case JVMTI_HEAP_REFERENCE_SIGNERS:
+		kind = "JVMTI_HEAP_REFERENCE_SIGNERS";
+		break;
+	case JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN:
+		kind = "JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN";
+		break;
+	case JVMTI_HEAP_REFERENCE_INTERFACE:
+		kind = "JVMTI_HEAP_REFERENCE_INTERFACE";
+		break;
+	case JVMTI_HEAP_REFERENCE_STATIC_FIELD:
+		kind = "JVMTI_HEAP_REFERENCE_STATIC_FIELD";
+		break;
+	case JVMTI_HEAP_REFERENCE_CONSTANT_POOL:
+		kind = "JVMTI_HEAP_REFERENCE_CONSTANT_POOL";
+		break;
+	case JVMTI_HEAP_REFERENCE_SUPERCLASS:
+		kind = "JVMTI_HEAP_REFERENCE_SUPERCLASS";
+		break;
+	case JVMTI_HEAP_REFERENCE_JNI_GLOBAL:
+		kind = "JVMTI_HEAP_REFERENCE_JNI_GLOBAL";
+		break;
+	case JVMTI_HEAP_REFERENCE_SYSTEM_CLASS: 
+		kind = "JVMTI_HEAP_REFERENCE_SYSTEM_CLASS";
+		break;
+	case JVMTI_HEAP_REFERENCE_MONITOR: 
+		kind = "JVMTI_HEAP_REFERENCE_MONITOR";
+		break;
+	case JVMTI_HEAP_REFERENCE_STACK_LOCAL:
+		kind = "JVMTI_HEAP_REFERENCE_STACK_LOCAL";
+		break;
+	case JVMTI_HEAP_REFERENCE_JNI_LOCAL:
+		kind = "JVMTI_HEAP_REFERENCE_JNI_LOCAL";
+		break;
+	case JVMTI_HEAP_REFERENCE_THREAD:
+		kind = "JVMTI_HEAP_REFERENCE_THREAD";
+		break;
+	case JVMTI_HEAP_REFERENCE_OTHER:
+		kind = "JVMTI_HEAP_REFERENCE_OTHER";
+		break;
+	case jvmtiHeapReferenceKindEnsureWideEnum:
+		kind = "jvmtiHeapReferenceKindEnsureWideEnum";
+		break;
+	default: 
+		kind = "def";
+		break;
+	}
+
+	stdout_message("Callback Heap Object References: index: %2d; referer_tag: %9d; class_tag %9d; tag_ptr %8d; kind: %s\n", referrer_index, referrer_tag, class_tag, *tag_ptr, kind);
+
+	return JVMTI_ITERATION_CONTINUE;
+}
+
+/********************************************************/
 
 JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv* env, jclass thisClass)
 {
@@ -245,49 +446,83 @@ JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv* en
 	check_jvmti_error(gdata->jvmti, error, "force garbage collection");
 
 	componandClassLoader = env->FindClass(gClassName);
-	stdout_message("Compound class loader %d\n", componandClassLoader);
+	stdout_message("Compound class loader %s %d\n", gClassName, componandClassLoader);
 
-	if (componandClassLoader)
+	if (componandClassLoader != nullptr)
 	{
 		jvmtiHeapCallbacks callbacks;
 		(void)memset(&callbacks, 0, sizeof(callbacks));
-		callbacks.heap_reference_callback = &followReferenceCallback;
+		callbacks.heap_reference_callback = &cbHeapReference;
+
+		auto count = 0;
 
 		auto t = new Tag();
+		gdata->jvmti->SetTag(componandClassLoader, (ptrdiff_t)(void*)&t);
 
-		error = gdata->jvmti->FollowReferences(0, componandClassLoader, nullptr, &callbacks, &t);
+		stdout_message("start follow refereces callback...\n");
+		error = gdata->jvmti->FollowReferences(JVMTI_HEAP_FILTER_CLASS_TAGGED, componandClassLoader, componandClassLoader, &callbacks, &count);
 		check_jvmti_error(gdata->jvmti, error, "follow references");
 
-		stdout_message("heapRefClass %d\n", t->jvmti_heap_reference_class);
-
-
-		//	return t->heapRefClassLoader + t->heapRefClass + t->heapRefSystemClass + t->heapRefOther;
-
-		//		stdout_message("tag %d\n", t->heapRefStackLocal);
+		return count;
 	}
-	return 10;
+	return 0;
 }
 
 JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv* env, jclass thisClass)
 {
-	jclass componandClassLoader;
+	jclass klass;
 	jvmtiError err;
 
-	stdout_message("\n\nIncstances:\n\n");
+	stdout_message("Force GC...\n");
+	err = gdata->jvmti->ForceGarbageCollection();
+	check_jvmti_error(gdata->jvmti, err, "force garbage collection");
 
-	componandClassLoader = env->FindClass(gClassName);
-	stdout_message("Compound class loader %d\n", componandClassLoader);
+	stdout_message("Incstances:\n\n");
+
+	klass = env->FindClass(gClassName);
+	stdout_message("Viewed class %s %d\n", gClassName, klass);
 
 	auto count = 0;
 
-	if (componandClassLoader)
+	if (klass != nullptr)
 	{
-		jvmtiHeapCallbacks callbacks;
-		(void)memset(&callbacks, 0, sizeof(callbacks));
-		callbacks.heap_iteration_callback = &heapIterationCallback;
 
-		err = gdata->jvmti->IterateThroughHeap(0, componandClassLoader, &callbacks, &count);
+		/** Heap 1.1 API **/
+
+		jvmtiHeapCallbacks callbacks;
+		(void)memset(&callbacks, 0, sizeof(callbacks));		
+		callbacks.heap_reference_callback = &cbHeapReference;
+		callbacks.heap_iteration_callback = &cbHeapIteration;		
+		callbacks.primitive_field_callback = &cbPrimitivField;
+		callbacks.array_primitive_value_callback = &cbArrayPrimitiveValue;
+		callbacks.string_primitive_value_callback = &cbStringPrimitiveValue;
+		
+
+		/** Heap 1.0 API **/
+
+		//err = gdata->jvmti->IterateOverHeap(JVMTI_HEAP_OBJECT_TAGGED, &heabObjectCallback, &count);
+		//check_jvmti_error(gdata->jvmti, err, "iterate over heap");
+
+		auto t = new Tag();
+		auto tag_ptr = (ptrdiff_t)(void*)&t;
+
+		stdout_message("tag to jklass %d\n", tag_ptr);
+		gdata->jvmti->SetTag(klass, tag_ptr);
+
+		err = gdata->jvmti->IterateOverInstancesOfClass(klass, JVMTI_HEAP_OBJECT_UNTAGGED, &heabObjectCallback, &count);
+		check_jvmti_error(gdata->jvmti, err, "iterate over instances of class");
+
+		stdout_message("-------------------------------------------------------\n");
+  		err = gdata->jvmti->FollowReferences(JVMTI_HEAP_OBJECT_TAGGED, klass, NULL , &callbacks, &count);
 		check_jvmti_error(gdata->jvmti, err, "iterate through heap");
+		stdout_message("-------------------------------------------------------\n");
+
+		auto tt = new Tag();
+		err = gdata->jvmti->IterateOverReachableObjects(&heapRootCallback, &stackReferenceCallback, &heabObjectReferencesCallback, &tt);
+		check_jvmti_error(gdata->jvmti, err, "iterate over reachable objects");	    
+
+		//err = gdata->jvmti->IterateOverObjectsReachableFromObject(componandClassLoader, &heabObjectReferencesCallback, &count);
+		//check_jvmti_error(gdata->jvmti, err, "iterate over objectd reachable from object");
 	}
 
 	return count;
@@ -295,6 +530,93 @@ JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv* env
 
 
 /* Agent_OnLoad() is called first, we prepare for a VM_INIT event here. */
+void printCapabilities(jvmtiCapabilities capabilities)
+{
+	stdout_message("\n Capabilities:\n \
+	can_tag_objects : %d\n\
+	can_generate_field_modification_events : %d\n\
+	can_generate_field_access_events : %d\n\
+	can_get_bytecodes : %d\n\
+	can_get_synthetic_attribute : %d\n\
+	can_get_owned_monitor_info : %d\n\
+	can_get_current_contended_monitor : %d\n\
+	can_get_monitor_info : %d\n\
+	can_pop_frame : %d\n\
+	can_redefine_classes : %d\n\
+	can_signal_thread : %d\n\
+	can_get_source_file_name : %d\n\
+	can_get_line_numbers : %d\n\
+	can_get_source_debug_extension : %d\n\
+	can_access_local_variables : %d\n\
+	can_maintain_original_method_order : %d\n\
+	can_generate_single_step_events : %d\n\
+	can_generate_exception_events : %d\n\
+	can_generate_frame_pop_events : %d\n\
+	can_generate_breakpoint_events : %d\n\
+	can_suspend : %d\n\
+	can_redefine_any_class : %d\n\
+	can_get_current_thread_cpu_time : %d\n\
+	can_get_thread_cpu_time : %d\n\
+	can_generate_method_entry_events : %d\n\
+	can_generate_method_exit_events : %d\n\
+	can_generate_all_class_hook_events : %d\n\
+	can_generate_compiled_method_load_events : %d\n\
+	can_generate_monitor_events : %d\n\
+	can_generate_vm_object_alloc_events : %d\n\
+	can_generate_native_method_bind_events : %d\n\
+	can_generate_garbage_collection_events : %d\n\
+	can_generate_object_free_events : %d\n\
+	can_force_early_return : %d\n\
+	can_get_owned_monitor_stack_depth_info : %d\n\
+	can_get_constant_pool : %d\n\
+	can_set_native_method_prefix : %d\n\
+	can_retransform_classes : %d\n\
+	can_retransform_any_class : %d\n\
+	can_generate_resource_exhaustion_heap_events : %d\n\
+	can_generate_resource_exhaustion_threads_events : %d\n\n",
+	               capabilities.can_tag_objects,
+	               capabilities.can_generate_field_modification_events,
+	               capabilities.can_generate_field_access_events,
+	               capabilities.can_get_bytecodes,
+	               capabilities.can_get_synthetic_attribute,
+	               capabilities.can_get_owned_monitor_info,
+	               capabilities.can_get_current_contended_monitor,
+	               capabilities.can_get_monitor_info,
+	               capabilities.can_pop_frame,
+	               capabilities.can_redefine_classes,
+	               capabilities.can_signal_thread,
+	               capabilities.can_get_source_file_name,
+	               capabilities.can_get_line_numbers,
+	               capabilities.can_get_source_debug_extension,
+	               capabilities.can_access_local_variables,
+	               capabilities.can_maintain_original_method_order,
+	               capabilities.can_generate_single_step_events,
+	               capabilities.can_generate_exception_events,
+	               capabilities.can_generate_frame_pop_events,
+	               capabilities.can_generate_breakpoint_events,
+	               capabilities.can_suspend,
+	               capabilities.can_redefine_any_class,
+	               capabilities.can_get_current_thread_cpu_time,
+	               capabilities.can_get_thread_cpu_time,
+	               capabilities.can_generate_method_entry_events,
+	               capabilities.can_generate_method_exit_events,
+	               capabilities.can_generate_all_class_hook_events,
+	               capabilities.can_generate_compiled_method_load_events,
+	               capabilities.can_generate_monitor_events,
+	               capabilities.can_generate_vm_object_alloc_events,
+	               capabilities.can_generate_native_method_bind_events,
+	               capabilities.can_generate_garbage_collection_events,
+	               capabilities.can_generate_object_free_events,
+	               capabilities.can_force_early_return,
+	               capabilities.can_get_owned_monitor_stack_depth_info,
+	               capabilities.can_get_constant_pool,
+	               capabilities.can_set_native_method_prefix,
+	               capabilities.can_retransform_classes,
+	               capabilities.can_retransform_any_class,
+	               capabilities.can_generate_resource_exhaustion_heap_events,
+	               capabilities.can_generate_resource_exhaustion_threads_events);
+}
+
 JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved)
 {
@@ -322,14 +644,18 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved)
 	/* Immediately after getting the jvmtiEnv* we need to ask for the
 	*   capabilities this agent will need.
 	*/
-	(void)memset(&capabilities, 0, sizeof(capabilities));
-	capabilities.can_generate_all_class_hook_events = 1;
+	jvmti->GetCapabilities(&capabilities);
 	capabilities.can_tag_objects = 1;
+	capabilities.can_generate_all_class_hook_events = 1;
 	capabilities.can_generate_object_free_events = 1;
 	capabilities.can_get_source_file_name = 1;
 	capabilities.can_get_line_numbers = 1;
 	capabilities.can_generate_vm_object_alloc_events = 1;
+	capabilities.can_generate_field_access_events = 1;
 	err = jvmti->AddCapabilities(&capabilities);
+
+	//printCapabilities(capabilities);
+
 	check_jvmti_error(jvmti, err, "Unable to get necessary JVMTI capabilities.");
 
 	/* Set callbacks and enable event notifications */
