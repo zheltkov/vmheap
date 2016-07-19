@@ -20,7 +20,7 @@ public class HeapServlet extends HttpServlet {
 
         String heapInfo;
         try {
-            heapInfo = Heapview.fromNative();
+            heapInfo = new Heapview().instanceInfo();
         } catch (UnsatisfiedLinkError e) {
             heapInfo = "None";
         }

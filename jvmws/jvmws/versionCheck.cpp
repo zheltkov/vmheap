@@ -110,6 +110,12 @@ static void JNICALL vm_init(jvmtiEnv* jvmti, JNIEnv* env, jthread thread)
 	version_check(JVMTI_VERSION, runtime_version);
 }
 
+
+/**
+ * Heap API 1.1 ?
+ *
+ */
+
 static jint JNICALL cbHeapReference(
 	jvmtiHeapReferenceKind reference_kind,
 	const jvmtiHeapReferenceInfo* reference_info,
@@ -121,73 +127,73 @@ static jint JNICALL cbHeapReference(
 	jint length,
 	void* user_data)
 {
-	stdout_message("heap1.1 cbHeapReference\n");
 
-	auto t = static_cast<Tag*>(user_data);
+	*tag_ptr = (jlong)(ptrdiff_t)(void*)&user_data;
+
+	char * kind;
 
 	switch (reference_kind)
 	{
 	case JVMTI_HEAP_REFERENCE_CLASS:
-		stdout_message("JVMTI_HEAP_REFERENCE_CLASS %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_CLASS";
 		break;
 	case JVMTI_HEAP_REFERENCE_FIELD:
-
-		/* Referecnce field */
-		stdout_message("JVMTI_HEAP_REFERENCE_FIELD %d\n", reference_info->field);
+		kind = "JVMTI_HEAP_REFERENCE_FIELD";
 		break;
 	case JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT:
-		stdout_message("JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT";
 		break;
 	case JVMTI_HEAP_REFERENCE_CLASS_LOADER:
-		stdout_message("JVMTI_HEAP_REFERENCE_CLASS_LOADER %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_CLASS_LOADER";
 		break;
 	case JVMTI_HEAP_REFERENCE_SIGNERS:
-		stdout_message("JVMTI_HEAP_REFERENCE_SIGNERS %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_SIGNERS";
 		break;
 	case JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN:
-		stdout_message("JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN";
 		break;
 	case JVMTI_HEAP_REFERENCE_INTERFACE:
-		stdout_message("JVMTI_HEAP_REFERENCE_INTERFACE %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_INTERFACE";
 		break;
 	case JVMTI_HEAP_REFERENCE_STATIC_FIELD:
-
-		/* Referecnce static field */
-
-		stdout_message("JVMTI_HEAP_REFERENCE_STATIC_FIELD %d\n", reference_info->field.index);
+		kind = "JVMTI_HEAP_REFERENCE_STATIC_FIELD";
 		break;
 	case JVMTI_HEAP_REFERENCE_CONSTANT_POOL:
-		stdout_message("JVMTI_HEAP_REFERENCE_CONSTANT_POOL %d\n", reference_info->constant_pool.index);
+		kind = "JVMTI_HEAP_REFERENCE_CONSTANT_POOL";
 		break;
 	case JVMTI_HEAP_REFERENCE_SUPERCLASS:
-		stdout_message("JVMTI_HEAP_REFERENCE_SUPERCLASS %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_SUPERCLASS";
 		break;
 	case JVMTI_HEAP_REFERENCE_JNI_GLOBAL:
-		stdout_message("JVMTI_HEAP_REFERENCE_JNI_GLOBAL %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_JNI_GLOBAL";
 		break;
 	case JVMTI_HEAP_REFERENCE_SYSTEM_CLASS:
-		stdout_message("JVMTI_HEAP_REFERENCE_SYSTEM_CLASS %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_SYSTEM_CLASS";
 		break;
 	case JVMTI_HEAP_REFERENCE_MONITOR:
-		stdout_message("JVMTI_HEAP_REFERENCE_MONITOR %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_MONITOR";
 		break;
 	case JVMTI_HEAP_REFERENCE_STACK_LOCAL:
-		stdout_message("JVMTI_HEAP_REFERENCE_STACK_LOCAL %d\n", reference_info->stack_local.method);;
+		kind = "JVMTI_HEAP_REFERENCE_STACK_LOCAL";
 		break;
 	case JVMTI_HEAP_REFERENCE_JNI_LOCAL:
-		stdout_message("JVMTI_HEAP_REFERENCE_JNI_LOCAL %s\n", reference_info->jni_local.method);
+		kind = "JVMTI_HEAP_REFERENCE_JNI_LOCAL";
 		break;
 	case JVMTI_HEAP_REFERENCE_THREAD:
-		stdout_message("JVMTI_HEAP_REFERENCE_THREAD %d\n", reference_info);
+		kind = "JVMTI_HEAP_REFERENCE_THREAD";
 		break;
 	case JVMTI_HEAP_REFERENCE_OTHER:
-		stdout_message("JVMTI_HEAP_REFERENCE_OTHER %d\n", reference_info->other);
+		kind = "JVMTI_HEAP_REFERENCE_OTHER";
 		break;
 	case jvmtiHeapReferenceKindEnsureWideEnum:
-		stdout_message("jvmtiHeapReferenceKindEnsureWideEnum\n");
+		kind = "jvmtiHeapReferenceKindEnsureWideEnum";
 		break;
-	default: break;
+	default: 
+		kind = "def";
+		break;
 	}
+
+	stdout_message("heap1.1 cbHeapReference: %s %d %d %d\n", kind,  reference_info->array.index, reference_info->field, reference_info->stack_local.location);
 
 	return JVMTI_VISIT_OBJECTS;
 }
@@ -361,11 +367,14 @@ static jvmtiIterationControl JNICALL stackReferenceCallback(jvmtiHeapRootKind ro
 
 static jvmtiIterationControl JNICALL heabObjectReferencesCallback(jvmtiObjectReferenceKind reference_kind, jlong class_tag, jlong size, jlong* tag_ptr, jlong referrer_tag, jint referrer_index, void* user_data)
 {
-	if (class_tag == 0 && *tag_ptr == 0 && referrer_tag == 0)
-	{
-		return JVMTI_ITERATION_CONTINUE;
-	}	
 
+	if (class_tag == 0 && *tag_ptr == 0 && referrer_tag == 0) //if (reference_kind != JVMTI_HEAP_REFERENCE_THREAD)
+	{
+			return JVMTI_ITERATION_CONTINUE;
+	}	
+		
+	//*tag_ptr = (jlong)(ptrdiff_t)(void*)&user_data;
+	
 	char* kind;
 
  	switch (reference_kind)
@@ -435,52 +444,80 @@ static jvmtiIterationControl JNICALL heabObjectReferencesCallback(jvmtiObjectRef
 }
 
 /********************************************************/
-
-JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv* env, jclass thisClass)
-{
-	jclass componandClassLoader;
-	jvmtiError error;
-
+void callGC()
+{	
 	stdout_message("\n\nForce GC...\n\n");
-	error = gdata->jvmti->ForceGarbageCollection();
+	jvmtiError error = gdata->jvmti->ForceGarbageCollection();
 	check_jvmti_error(gdata->jvmti, error, "force garbage collection");
-
-	componandClassLoader = env->FindClass(gClassName);
-	stdout_message("Compound class loader %s %d\n", gClassName, componandClassLoader);
-
-	if (componandClassLoader != nullptr)
-	{
-		jvmtiHeapCallbacks callbacks;
-		(void)memset(&callbacks, 0, sizeof(callbacks));
-		callbacks.heap_reference_callback = &cbHeapReference;
-
-		auto count = 0;
-
-		auto t = new Tag();
-		gdata->jvmti->SetTag(componandClassLoader, (ptrdiff_t)(void*)&t);
-
-		stdout_message("start follow refereces callback...\n");
-		error = gdata->jvmti->FollowReferences(JVMTI_HEAP_FILTER_CLASS_TAGGED, componandClassLoader, componandClassLoader, &callbacks, &count);
-		check_jvmti_error(gdata->jvmti, error, "follow references");
-
-		return count;
-	}
-	return 0;
 }
 
-JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv* env, jclass thisClass)
+void printClassName(JNIEnv* env, jobject found_object)
+{
+	char *classSignature;
+	jclass klass = env->GetObjectClass(found_object);
+	jobjectRefType reftype = env->GetObjectRefType(found_object);		
+	gdata->jvmti->GetClassSignature(klass, &classSignature, nullptr);	
+	stdout_message("Class %s %d\n", classSignature, reftype);
+}
+
+JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv *env, jobject callerObject, jobject object)
+{
+	stdout_message("param obj %d\n", object);
+	printClassName(env, object);
+
+	callGC();
+	
+    auto t = new Tag();
+	auto tag_ptr = reinterpret_cast<ptrdiff_t>(static_cast<void*>(&t));
+
+	stdout_message("Set tag ptr %d\n", tag_ptr);
+	gdata->jvmti->SetTag(object, tag_ptr);	
+
+	auto count = 0;
+ 	gdata->jvmti->IterateOverObjectsReachableFromObject(object, &heabObjectReferencesCallback, &t);
+	
+	
+	/** Heap 1.1 API ********************************************/
+ 	jvmtiHeapCallbacks callbacks;
+	(void)memset(&callbacks, 0, sizeof(callbacks));		
+	callbacks.heap_reference_callback = &cbHeapReference;
+ 	callbacks.primitive_field_callback = &cbPrimitivField;
+	callbacks.array_primitive_value_callback = &cbArrayPrimitiveValue;
+	callbacks.string_primitive_value_callback = &cbStringPrimitiveValue;
+		
+	gdata->jvmti->FollowReferences(0, env->GetObjectClass(object), object, &callbacks, (void*)tag_ptr);
+	
+	/***************************************/
+ 	jlong tags = {tag_ptr};
+	jint found_count;
+	jobject* found_objects;
+	jlong* found_tags;
+
+	gdata->jvmti->GetObjectsWithTags(10, &tags, &found_count, &found_objects, &found_tags);
+	
+	stdout_message("found count %d\n", found_count);
+	for (int i = 0; i < found_count; ++i)
+	{
+		jobject found_object = found_objects[i];
+		printClassName(env, found_object);
+	}
+	/***********************************************/
+
+	return count;
+
+}
+
+JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv *env, jobject callerObject)
 {
 	jclass klass;
 	jvmtiError err;
 
-	stdout_message("Force GC...\n");
-	err = gdata->jvmti->ForceGarbageCollection();
-	check_jvmti_error(gdata->jvmti, err, "force garbage collection");
+	callGC();
 
 	stdout_message("Incstances:\n\n");
 
 	klass = env->FindClass(gClassName);
-	stdout_message("Viewed class %s %d\n", gClassName, klass);
+	stdout_message("Viewed class %s %d\n", gClassName, klass);	
 
 	auto count = 0;
 
@@ -512,17 +549,11 @@ JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv* env
 		err = gdata->jvmti->IterateOverInstancesOfClass(klass, JVMTI_HEAP_OBJECT_UNTAGGED, &heabObjectCallback, &count);
 		check_jvmti_error(gdata->jvmti, err, "iterate over instances of class");
 
-		stdout_message("-------------------------------------------------------\n");
-  		err = gdata->jvmti->FollowReferences(JVMTI_HEAP_OBJECT_TAGGED, klass, NULL , &callbacks, &count);
-		check_jvmti_error(gdata->jvmti, err, "iterate through heap");
-		stdout_message("-------------------------------------------------------\n");
-
 		auto tt = new Tag();
 		err = gdata->jvmti->IterateOverReachableObjects(&heapRootCallback, &stackReferenceCallback, &heabObjectReferencesCallback, &tt);
 		check_jvmti_error(gdata->jvmti, err, "iterate over reachable objects");	    
 
-		//err = gdata->jvmti->IterateOverObjectsReachableFromObject(componandClassLoader, &heabObjectReferencesCallback, &count);
-		//check_jvmti_error(gdata->jvmti, err, "iterate over objectd reachable from object");
+
 	}
 
 	return count;

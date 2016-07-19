@@ -1,6 +1,7 @@
 package org.zheltkov.heapview;
 
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Created by alex on 15.07.2016.
@@ -8,16 +9,19 @@ import java.util.concurrent.TimeUnit;
 public class Heapview {
 
     private String value = "test static value";
+    private ArrayList<Heapview> heapview = new ArrayList<Heapview>();
 
-    private static native int references();
+    public native int references(Object object);
 
-    private static native int instances();
+    public native int instances();
 
-    static String fromNative() {
-        int references = 0;// references();
+    public String instanceInfo() {
         int instances = instances();
+        return String.format("\nClass instances %d\n", instances);
+    }
 
-        return String.format("\nClass references %d\nClass instances %d\n", references, instances);
+    public String referenceInfo() {
+        return String.format("ref %d\n", references(this));
     }
 
     public void test() {
@@ -25,15 +29,31 @@ public class Heapview {
     }
 
     public static void main(String[] args) {
+
         Heapview heapview1 = new Heapview();
-
         Heapview heapview2 = new Heapview();
+        Heapview heapview3 = new Heapview();
+        Heapview heapview4 = new Heapview();
 
-        String output = heapview2.fromNative();
+        heapview1.addHeapview(heapview2);
+        heapview1.addHeapview(heapview3);
+        heapview1.addHeapview(heapview4);
+
+        heapview4.addHeapview(heapview3);
+        heapview3.addHeapview(heapview4);
+
+        String output = heapview1.referenceInfo();
 
         heapview1.test();
         heapview2.test();
+        heapview3.test();
+        heapview4.test();
+
 
         //System.out.println(output);
+    }
+
+    public void addHeapview(Heapview heapview) {
+        this.heapview.add(heapview);
     }
 }

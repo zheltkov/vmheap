@@ -38,10 +38,9 @@ extern "C"
 		jint length,
 		void* user_data);
 
+	JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv* env, jobject callerObject, jobject object);
 
-	JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv* env, jclass thisClass);
-
-	JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv* env, jclass thisClass);
+	JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv* env, jobject callerObject);
 
 	/* Agent_OnLoad() is called first, we prepare for a VM_INIT event here. */
 	JNIEXPORT jint JNICALL Agent_OnLoad(JavaVM* vm, char* options, void* reserved);
