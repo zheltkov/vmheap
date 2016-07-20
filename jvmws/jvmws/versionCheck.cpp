@@ -358,7 +358,9 @@ static jvmtiIterationControl JNICALL heapRootCallback(jvmtiHeapRootKind root_kin
 	case jvmtiHeapRootKindEnsureWideEnum:
 		root_kind_str = "jvmtiHeapRootKindEnsureWideEnum"; 
 		break;
-	default: break;
+	default:
+		root_kind_str = "def";
+		break;
 	}
 
 	stdout_message("Callback              Heap Root: class_tag: %8d; size: %3d; tag_ptr: %d; kind: %s\n", class_tag, size, *tag_ptr, root_kind_str);
