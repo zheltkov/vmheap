@@ -8,7 +8,8 @@
 *.jar
 **/x64/**/*
 **/target/**/*
-**/.idea/
+heapview/.idea/misc.xml
+heapview/.idea/workspace.xml
 **/.idea/**/*
 **/out/**/*
-**/*.vcxproj
+jvmws/jvmws/*.vcxproj
