@@ -1,3 +1,8 @@
 *.db
 *.opendb
 *.suo
+*.xml
+*.vcxproj
+*.dll
+*.obj
+*.xml
