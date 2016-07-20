@@ -5,10 +5,10 @@
 *.vcxproj
 *.dll
 *.obj
-*.xml
 *.jar
 **/x64/**/*
 **/target/**/*
+**/.idea/
 **/.idea/**/*
 **/out/**/*
-*.vcxproj
+**/*.vcxproj
