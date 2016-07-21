@@ -13,3 +13,7 @@ heapview/.idea/workspace.xml
 **/.idea/**/*
 **/out/**/*
 jvmws/jvmws/*.vcxproj
+heapview/.idea/misc.xml
+heapview/.idea/workspace.xml
+*.dmp
+*.vcxproj

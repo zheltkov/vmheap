@@ -43,7 +43,7 @@ public class Heapview {
 
         heapview1.ref = heapview2;
         heapview1.addHeapview(heapview2);
-        heapview1.referenceInfo();
+        //heapview1.referenceInfo();
 
         heapview1.test();
         heapview2.test();
