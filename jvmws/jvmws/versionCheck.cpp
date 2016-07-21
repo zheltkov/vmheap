@@ -46,7 +46,6 @@
 
 
 /* Global agent data structure */
-
 typedef struct
 {
 	/* JVMTI Environment */
@@ -54,31 +53,15 @@ typedef struct
 
 	/* Data access Lock */
 	jrawMonitorID lock;
+
 } GlobalAgentData;
 
 static GlobalAgentData* gdata;
-
-typedef struct Tag
-{
-	jmethodID method;
-	int count;
-	char* name;
-	jint hashCode;
-
-} Tag;
-
-
-typedef struct StackLocalReference
-{
-	jmethodID methodId;
-} StackLocalReference;
-
 
 //static char* gClassName = "sun/misc/Launcher$AppClassLoader";
 static char* gClassName = "org/zheltkov/heapview/Heapview";
 static std::unordered_map<long, char*> nameMap;
 //static char* gClassName = "com/ibm/jvm/ClassLoader";
-
 
 /* Create major.minor.micro version string */
 static void version_check(jint cver, jint rver)
@@ -117,12 +100,6 @@ static void JNICALL vm_init(jvmtiEnv* jvmti, JNIEnv* env, jthread thread)
 	check_jvmti_error(jvmti, err, "get version number");
 	version_check(JVMTI_VERSION, runtime_version);
 }
-
-
-/**
- * Heap API 1.1 ?
- *
- */
 
 static char* getRefKind(jvmtiHeapReferenceKind reference_kind)
 {
@@ -192,14 +169,13 @@ static char* getRefKind(jvmtiHeapReferenceKind reference_kind)
 	return kind;
 }
 
-
 static Tag* pointerToTag(jlong tag_ptr)
 {
 	if (tag_ptr == 0)
 	{
 		Tag* t = new Tag();
 		t->name = "new";
-		t->hashCode = 0;
+		t->hashCode = 0;		
 
 		return t;
 	}
@@ -210,229 +186,6 @@ static Tag* pointerToTag(jlong tag_ptr)
 static jlong tagToPointer(Tag* tag)
 {
 	return (jlong)(ptrdiff_t)(void*)tag;
-}
-
-static jint JNICALL cbHeapReference(
-	jvmtiHeapReferenceKind reference_kind,
-	const jvmtiHeapReferenceInfo* reference_info,
-	jlong class_tag,
-	jlong referrer_class_tag,
-	jlong size,
-	jlong* tag_ptr,
-	jlong* referrer_tag_ptr,
-	jint length,
-	void* user_data)
-{
-	
-	auto tag = pointerToTag(*tag_ptr);
-	auto referrerTag = pointerToTag(*referrer_tag_ptr);
-	auto classTag = pointerToTag(class_tag);
-	auto refererClassTag = pointerToTag(referrer_class_tag);
-	auto kind = getRefKind(reference_kind);
-
-
-	stdout_message("heap1.1 cbHeapReference: %s; field: %d; referer_tag: %s; referer_class_tag: %s; tag: %s; class_tag: %s\n", kind, reference_info->field, referrerTag->name, refererClassTag->name, tag->name, classTag->name);
-
-	*tag_ptr = tagToPointer(tag);
-
-	//store all tags
-	std::vector<jlong>* tag_ptr_list = (std::vector<jlong>*)(ptrdiff_t)(void*)user_data;
-	(*tag_ptr_list).push_back(*tag_ptr);
-
-	return JVMTI_VISIT_OBJECTS;
-}
-
-static jint JNICALL cbHeapIteration(
-	jlong class_tag,
-	jlong size,
-	jlong* tag_ptr,
-	jint length,
-	void* user_data)
-{	
-	char * class_name = "0";
-	if (class_tag > 0)
-	{
-		auto t = (Tag*)(ptrdiff_t)(void*)class_tag;
-		class_name = t->name;
-	}
-
-	stdout_message("cbHeapIteration: %s, %d, %d, %d\n", class_name, size, *tag_ptr, length);
-
-	return JVMTI_VISIT_OBJECTS;
-}
-
-static jint JNICALL cbPrimitivField(
-	jvmtiHeapReferenceKind reference_kind,
-	const jvmtiHeapReferenceInfo* referrer_info,
-	jlong class_tag,
-	jlong* tag_ptr,
-	jvalue value,
-	jvmtiPrimitiveType value_type,
-	void* user_data)
-{
-	char * type;
-	switch (value_type)
-	{
-	case JVMTI_PRIMITIVE_TYPE_BOOLEAN: type = "BOOLEAN"; break;
-	case JVMTI_PRIMITIVE_TYPE_BYTE: type = "BYTE"; break;
-	case JVMTI_PRIMITIVE_TYPE_CHAR: type = "CHAR"; break;
-	case JVMTI_PRIMITIVE_TYPE_SHORT: type = "SHORT"; break;
-	case JVMTI_PRIMITIVE_TYPE_INT: type = "INT"; break;
-	case JVMTI_PRIMITIVE_TYPE_LONG: type = "LONG"; break;
-	case JVMTI_PRIMITIVE_TYPE_FLOAT: type = "FLOAT"; break;
-	case JVMTI_PRIMITIVE_TYPE_DOUBLE: type = "DOUBLE"; break;
-	case jvmtiPrimitiveTypeEnsureWideEnum: type = "NUN"; break;
-	default: type = "DEF"; break;
-	}
-	stdout_message("primitiv field type: %s\n", type);
-
-	return JVMTI_VISIT_OBJECTS;
-}
-
-static jint JNICALL cbArrayPrimitiveValue(
-	jlong class_tag,
-	jlong size,
-	jlong* tag_ptr,
-	jint element_count,
-	jvmtiPrimitiveType element_type,
-	const void* elements,
-	void* user_data)
-{
-	stdout_message("array primitiv value\n");
-
-	return JVMTI_VISIT_OBJECTS;
-}
-
-static jint JNICALL cbStringPrimitiveValue(
-	jlong class_tag,
-	jlong size,
-	jlong* tag_ptr,
-	const jchar* value,
-	jint value_length,
-	void* user_data)
-{
-
-	auto buf = new char[value_length+1];
-	for (auto i = 0; i < value_length; ++i)
-	{
-		buf[i] = value[i];
-	}
-	buf[value_length] = '\0';
-
-	stdout_message("string primitiv value: '%s'\n", buf);
-
-	return JVMTI_VISIT_OBJECTS;
-}
-
-/**
- *   Heap 1.0 ?
- *
- **/
-static jvmtiIterationControl JNICALL heabObjectCallback(jlong class_tag, jlong size, jlong* tag_ptr, void* user_data)
-{
-	auto count = static_cast<int*>(user_data);
-	*count += 1;	
-
-	stdout_message("obj old tag %d\n", *tag_ptr);
-
-	auto t = new Tag();
-	t->count = *count;
-
-	*tag_ptr = (jlong)(ptrdiff_t)(void*)t;
-
-	stdout_message("obj new tag %d\n\n\n", *tag_ptr);
-	stdout_message("Callback            Heap Object: instance count: %d; tag_ptr: %d; size: %d; class_tag: %d;\n", *count, *tag_ptr, size, class_tag);
-
-	return JVMTI_ITERATION_CONTINUE;
-}
-
-static jvmtiIterationControl JNICALL heapRootCallback(jvmtiHeapRootKind root_kind, jlong class_tag, jlong size, jlong* tag_ptr, void* user_data)
-{
-	if (*tag_ptr == 0 && class_tag == 0) 
-	{
-		return JVMTI_ITERATION_CONTINUE;
-	}
-
-	char * root_kind_str;
-
-	switch (root_kind)
-	{
-	case JVMTI_HEAP_ROOT_JNI_GLOBAL: 
-		root_kind_str = "JVMTI_HEAP_ROOT_JNI_GLOBAL";  
-		break;
-	case JVMTI_HEAP_ROOT_SYSTEM_CLASS: 
-		root_kind_str = "JVMTI_HEAP_ROOT_SYSTEM_CLASS"; 
-		break;
-	case JVMTI_HEAP_ROOT_MONITOR: 
-		root_kind_str = "JVMTI_HEAP_ROOT_MONITOR"; 
-		break;
-	case JVMTI_HEAP_ROOT_STACK_LOCAL: 
-		root_kind_str = "JVMTI_HEAP_ROOT_STACK_LOCAL"; 
-		break;
-	case JVMTI_HEAP_ROOT_JNI_LOCAL: 
-		root_kind_str = "JVMTI_HEAP_ROOT_JNI_LOCAL"; 
-		break;
-	case JVMTI_HEAP_ROOT_THREAD:
-		root_kind_str = "JVMTI_HEAP_ROOT_THREAD"; 
-		break;
-	case JVMTI_HEAP_ROOT_OTHER:
-		root_kind_str = "JVMTI_HEAP_ROOT_OTHER"; 
-		break;
-	case jvmtiHeapRootKindEnsureWideEnum:
-		root_kind_str = "jvmtiHeapRootKindEnsureWideEnum"; 
-		break;
-	default:
-		root_kind_str = "def";
-		break;
-	}
-
-	stdout_message("Callback              Heap Root: class_tag: %8d; size: %3d; tag_ptr: %d; kind: %s\n", class_tag, size, *tag_ptr, root_kind_str);
-	
-	return JVMTI_ITERATION_CONTINUE;
-}
-
-static jvmtiIterationControl JNICALL stackReferenceCallback(jvmtiHeapRootKind root_kind, jlong class_tag, jlong size, jlong* tag_ptr, jlong thread_tag, jint depth, jmethodID method, jint slot, void* user_data)
-{
-	if (class_tag == 0 && ((jint)method) < 0 && thread_tag == 0) 
-	{
-		return JVMTI_ITERATION_CONTINUE;
-	}
-
-	char * root_kind_str;
-
-	switch (root_kind)
-	{
-	case JVMTI_HEAP_ROOT_JNI_GLOBAL: 
-		root_kind_str = "JVMTI_HEAP_ROOT_JNI_GLOBAL";  
-		break;
-	case JVMTI_HEAP_ROOT_SYSTEM_CLASS: 
-		root_kind_str = "JVMTI_HEAP_ROOT_SYSTEM_CLASS"; 
-		break;
-	case JVMTI_HEAP_ROOT_MONITOR: 
-		root_kind_str = "JVMTI_HEAP_ROOT_MONITOR"; 
-		break;
-	case JVMTI_HEAP_ROOT_STACK_LOCAL: 
-		root_kind_str = "JVMTI_HEAP_ROOT_STACK_LOCAL"; 
-		break;
-	case JVMTI_HEAP_ROOT_JNI_LOCAL: 
-		root_kind_str = "JVMTI_HEAP_ROOT_JNI_LOCAL"; 
-		break;
-	case JVMTI_HEAP_ROOT_THREAD:
-		root_kind_str = "JVMTI_HEAP_ROOT_THREAD"; 
-		break;
-	case JVMTI_HEAP_ROOT_OTHER:
-		root_kind_str = "JVMTI_HEAP_ROOT_OTHER"; 
-		break;
-	case jvmtiHeapRootKindEnsureWideEnum:
-		root_kind_str = "jvmtiHeapRootKindEnsureWideEnum"; 
-		break;
-	default:
-		root_kind_str = "def"; 
-		break;
-	}
-
-	stdout_message("Callback       Stack References: class_tag: %8d; size: %3d; tag_ptr: %8d; thread_tag: %d; depth: %2d; method: %9d; slot: %2d; kind: %s\n", class_tag, size, *tag_ptr, thread_tag, depth, method, slot, root_kind_str);
-	return JVMTI_ITERATION_CONTINUE;
 }
 
 static char* getObjRefKind(jvmtiObjectReferenceKind reference_kind)
@@ -501,96 +254,58 @@ static char* getObjRefKind(jvmtiObjectReferenceKind reference_kind)
 	return kind;
 }
 
-static jvmtiIterationControl JNICALL heabObjectReferencesCallback(jvmtiObjectReferenceKind reference_kind, jlong class_tag, jlong size, jlong* tag_ptr, jlong referrer_tag, jint referrer_index, void* user_data)
-{	
- 	Tag* ref_tag = new Tag();
-	Tag* cl_tag = new Tag();
-	Tag* ptr_tag = new Tag();
-	
-	ref_tag->name = "0";
-	ref_tag->hashCode = 0;
+static jvmtiIterationControl JNICALL heabObjectCallback(jlong class_tag, jlong size, jlong* tag_ptr, void* user_data)
+{
+	auto count = static_cast<int*>(user_data);
+	*count += 1;	
 
-	cl_tag->name = "0";
- 	cl_tag->hashCode = 0;
+	stdout_message("obj old tag %d\n", *tag_ptr);
 
-	ptr_tag->name = "0";
-	ptr_tag->hashCode = 0;
+	auto t = new Tag();
+	t->count = *count;
 
-	
-	if (referrer_tag == 0 && class_tag == 0 && *tag_ptr == 0)
-	{
-		return JVMTI_ITERATION_CONTINUE;
-	}
-	
-	if (referrer_tag != 0) 
-	{
-		ref_tag = (Tag*)(ptrdiff_t)(void*)referrer_tag;		
- 		if ((strstr(ref_tag->name, "ArrayList") != nullptr || 
- 			strstr(ref_tag->name, "String") != nullptr )) 
-		{
-				return JVMTI_ITERATION_CONTINUE;
-		}
-	}
+	*tag_ptr = (jlong)(ptrdiff_t)(void*)t;
 
-	if (class_tag != 0)
-	{
-		cl_tag = (Tag*)(ptrdiff_t)(void*)class_tag;
- 		if ((strstr(cl_tag->name, "ArrayList") != nullptr || 
- 			strstr(cl_tag->name, "String") != nullptr ) && referrer_tag == 0 && *tag_ptr == 0) 
-		{
-				return JVMTI_ITERATION_CONTINUE;
-		}
-	}
-
-	if (*tag_ptr != 0)
-	{
-		ptr_tag = (Tag*)(ptrdiff_t)(void*)*tag_ptr;
- 		if ((strstr(ptr_tag->name, "ArrayList") != nullptr || 
- 			strstr(ptr_tag->name, "String") != nullptr ) && referrer_tag == 0 && class_tag == 0) 
-		{
-			return JVMTI_ITERATION_CONTINUE;
-		}
-	}
-
-
-	auto kind = getObjRefKind(reference_kind);
-
-	stdout_message("Callback Heap Object References: index: %2d; referer_tag: %s; class_tag %s; tag_ptr %s; kind: %s\n", referrer_index, ref_tag->name, cl_tag->name, ptr_tag->name, kind);		
+	stdout_message("obj new tag %d\n\n\n", *tag_ptr);
+	stdout_message("Callback            Heap Object: instance count: %d; tag_ptr: %d; size: %d; class_tag: %d;\n", *count, *tag_ptr, size, class_tag);
 
 	return JVMTI_ITERATION_CONTINUE;
 }
 
-static jvmtiIterationControl JNICALL heabObjectReferencesCallback2(jvmtiObjectReferenceKind reference_kind, jlong class_tag, jlong size, jlong* tag_ptr, jlong referrer_tag, jint referrer_index, void* user_data)
-{
-	
-	if (reference_kind != JVMTI_HEAP_REFERENCE_FIELD)
+static jvmtiIterationControl JNICALL heabObjectReferencesCallback(jvmtiObjectReferenceKind reference_kind, jlong class_tag, jlong size, jlong* tag_ptr, jlong referrer_tag, jint referrer_index, void* user_data)
+{	
+	if (reference_kind != JVMTI_HEAP_REFERENCE_FIELD && 
+		reference_kind != JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT && 
+		reference_kind != JVMTI_HEAP_REFERENCE_CLASS_LOADER)
 	{
 		return JVMTI_ITERATION_IGNORE;
 	}
 
 	auto t = pointerToTag(*tag_ptr);
-	*tag_ptr = tagToPointer(t);
-
-	auto rt = pointerToTag(referrer_tag);
-
+	auto rbt = pointerToTag(referrer_tag);
+ 	*tag_ptr = tagToPointer(t);
+		
+	rbt->ref_next_tags.push_back(t);
+	t->ref_back_tags.push_back(rbt);
+	
 	auto kind = getObjRefKind(reference_kind);
-	stdout_message("Callback Heap Object References: index: %2d; referer_tag: %s; %s; tag_ptr %s\n", referrer_index, rt->name, kind, t->name);
+	//stdout_message("Callback Heap Object References: index: %2d; referer_tag: %s; %s; tag_ptr %s\n", referrer_index, rbt->name, kind, t->name);
 
-	//store all tags
-	std::vector<jlong>* tag_ptr_list = (std::vector<jlong>*)(ptrdiff_t)(void*)user_data;
-	(*tag_ptr_list).push_back(*tag_ptr);
-
+	if (strcmp(t->name,"new") == 0)
+	{
+ 		//store all tags
+		std::vector<jlong>* tag_ptr_list = (std::vector<jlong>*)(ptrdiff_t)(void*)user_data;
+		(*tag_ptr_list).push_back(*tag_ptr);		
+	}	
 	return JVMTI_ITERATION_CONTINUE;
 }
-/********************************************************/
+
 void callGC()
 {	
 	stdout_message("\n\nForce GC...\n\n");
 	jvmtiError error = gdata->jvmti->ForceGarbageCollection();
 	check_jvmti_error(gdata->jvmti, error, "force garbage collection");
 }
-
-/********************************************************/
 
 char* getClassSignature(JNIEnv* env, jobject object)
 {
@@ -599,7 +314,7 @@ char* getClassSignature(JNIEnv* env, jobject object)
 	return  classSignature;
 }
 
-void printObject(JNIEnv* env, jobject object)
+void updateTag(JNIEnv* env, jobject object)
 {
 	char* objectSignature = getClassSignature(env, object);
 	jint hashCode;
@@ -610,9 +325,57 @@ void printObject(JNIEnv* env, jobject object)
 	gdata->jvmti->GetTag(object, &tag_ptr);
 
 	Tag* tag = (Tag*)(ptrdiff_t)(void*)tag_ptr;
-	tag->name = objectSignature;
+	tag->name = objectSignature;	
+}
 
-	stdout_message("Object: %s\n", objectSignature);
+static jint level;
+
+void printRefNextTags(std::vector<Tag*> tagList)
+{
+	if (tagList.size() > 0)
+	{
+		level++;
+		auto index = 1;
+		stdout_message("has %d refs:\n", tagList.size());	
+		for (std::vector<Tag*>::iterator it = tagList.begin(); it != tagList.end(); ++it)
+		{
+			stdout_message(" %s|--> %d. ",std::string(level, ' '), index++);
+			printTag(*it);			
+		}
+		level--;
+	} else
+	{
+		stdout_message("\n");	
+	}	
+}
+
+void printTag(Tag* tag)
+{
+	if (tag != nullptr)
+	{
+		stdout_message("obj: %s ", tag->name);	
+		
+		if (tag->isArray && tag->value != nullptr)
+		{
+			//stdout_message("val: %s", tag->value);		
+		}
+		
+ 		printRefNextTags(tag->ref_next_tags);								
+	}
+	else
+	{
+		stdout_message("tag is null.");	
+	}
+}
+
+void printObject(JNIEnv* env, jobject object)
+{
+	jlong tag_ptr;
+	gdata->jvmti->GetTag(object, &tag_ptr);
+	Tag* tag = (Tag*)(ptrdiff_t)(void*)tag_ptr;
+
+	level = 1;
+	printTag(tag);	
 }
 
 jlong setTag(Tag* t, jobject object)
@@ -649,7 +412,7 @@ jlong addNewTag(char* className, JNIEnv *env)
 	return setTag(t, klass);
 }
 //----------------------------------------------------------
-void getAllTaggedObjects(JNIEnv* env, std::vector<jlong> tag_ptr_list, jint * out_count, jobject** out_objects, jlong** out_tags)
+void getAllTaggedObjects(JNIEnv* env, std::vector<jlong> tag_ptr_list, jint * out_count, jobject** out_objects, jlong** out_tags, jint level)
 {
 	if (tag_ptr_list.size() > 0) {
 		jint found_count = 0;
@@ -659,54 +422,66 @@ void getAllTaggedObjects(JNIEnv* env, std::vector<jlong> tag_ptr_list, jint * ou
 
 		gdata->jvmti->GetObjectsWithTags(tag_ptr_list.size(), tags, &found_count, &found_objects, &found_tags);
 	
-		stdout_message("found count %d\n", found_count);
+		stdout_message("%s found count %d\n", std::string(level, ' '), found_count);
+
 		for (auto i = 0; i < found_count; ++i)
 		{
 			jobject found_object = found_objects[i];
-			printObject(env, found_object);			
+			Tag* found_tag = pointerToTag(found_tags[i]);
+
+			updateTag(env, found_object);		
+
+     		found_tag->isArray = false;
+			jboolean isArrayClass;
+			gdata->jvmti->IsArrayClass(env->GetObjectClass(found_object), &isArrayClass);
+			
+			if (isArrayClass)
+			{					
+				if (strstr(found_tag->name, "[C") != nullptr)
+				{
+					jint lenght = env->GetArrayLength((jcharArray)found_object);
+					char* buf = new char[lenght + 1];
+					jboolean isCopy;
+					jchar* value = env->GetCharArrayElements((jcharArray)found_object, &isCopy);
+					for (auto j = 0; j < lenght; ++j){ buf[j] = value[j];}
+					buf[lenght] = '\0';				
+				
+					found_tag->isArray = true;
+					found_tag->value = buf;
+					found_tag->value[lenght] = '\0';
+
+					stdout_message("val:%s\n", found_tag->value);
+				}				
+			}						
 		}
 
+		/*
+		for (auto i = 0; i < found_count; ++i)
+		{
+			jobject found_object = found_objects[i];
+			printObject(env, found_object);
+		}
+		*/
+	
 		*out_count = found_count;
 		*out_objects = found_objects;
 		*out_tags = found_tags;
 	}
 }
 
-void iterateOverObjects(JNIEnv* env, jobject object)
+void iterateOverObjects(JNIEnv* env, jobject object, jint level)
 {
 	std::vector<jlong> tag_ptr_list;
 
-	stdout_message("tag list size  %d\n", tag_ptr_list.size());
-	gdata->jvmti->IterateOverObjectsReachableFromObject(object, &heabObjectReferencesCallback2, (void*)&tag_ptr_list);
-
-	jvmtiHeapCallbacks callbacks;
-	(void)memset(&callbacks, 0, sizeof(callbacks));
-	//callbacks.heap_reference_callback = &cbHeapReference;
-	//callbacks.heap_iteration_callback = &cbHeapIteration;
-	//callbacks.primitive_field_callback = &cbPrimitivField;
-	//callbacks.array_primitive_value_callback = &cbArrayPrimitiveValue;
-	callbacks.string_primitive_value_callback = &cbStringPrimitiveValue;
-	
-	stdout_message("tag list size  %d\n", tag_ptr_list.size());
+	stdout_message("%s tag list size  %d\n", std::string(level, ' '),  tag_ptr_list.size());
+	gdata->jvmti->IterateOverObjectsReachableFromObject(object, &heabObjectReferencesCallback, (void*)&tag_ptr_list);
+	stdout_message("%s tag list size  %d\n", std::string(level, ' '), tag_ptr_list.size());
 
 	jint found_count = 0;
 	jobject* found_objects;
 	jlong* found_tags;
 
-	getAllTaggedObjects(env, tag_ptr_list, &found_count, &found_objects, &found_tags);
-
-	if(found_count > 0)
-	{
-		for (auto i = 0; i < found_count; ++i)
-		{
-			stdout_message("iterete over %d object %s\n", i+1, pointerToTag(found_tags[i])->name);
-			tag_ptr_list.clear();
-			gdata->jvmti->FollowReferences(JVMTI_HEAP_FILTER_UNTAGGED, 0, found_objects[i], &callbacks, nullptr);
-
-			iterateOverObjects(env, found_objects[i]);
-		}
-	}
-	stdout_message("===\n");
+	getAllTaggedObjects(env, tag_ptr_list, &found_count, &found_objects, &found_tags, level);
 }
 
 JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv *env, jobject callerObject, jobject object)
@@ -717,32 +492,14 @@ JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_references(JNIEnv *en
 		
 	std::vector<jlong> tag_ptr_list;	
 	
-	jlong t;
-				
-	/** Heap 1.1 API ********************************************/
- 	jvmtiHeapCallbacks callbacks;
-	(void)memset(&callbacks, 0, sizeof(callbacks));		
-	callbacks.heap_reference_callback = &cbHeapReference;
-	callbacks.heap_iteration_callback = &cbHeapIteration;
- 	//callbacks.primitive_field_callback = &cbPrimitivField;
-	//callbacks.array_primitive_value_callback = &cbArrayPrimitiveValue;
-	callbacks.string_primitive_value_callback = &cbStringPrimitiveValue;
+	jlong t = addNewTag(object, env);			
+	tag_ptr_list.push_back(t);
 	
-	//addNewTag(object, env);			
-	//addNewTag(gClassName, env);
-	//addNewTag("java/util/HashMap", env);
+	jint level = 0;
+	iterateOverObjects(env, object, level);
 
-	iterateOverObjects(env, object);
-
-	//stdout_message("tag list size  %d\n", tag_ptr_list.size());
-	//gdata->jvmti->FollowReferences(0, env->GetObjectClass(object), object, &callbacks, (void*)&tag_ptr_list);
-	//stdout_message("tag list size  %d\n", tag_ptr_list.size());
-	
- 	//addNewTag("java/util/ArrayList", env);			
-	//addNewTag("java/lang/String", env);			
-
-	/***********************************************/
-	//gdata->jvmti->IterateOverObjectsReachableFromObject(object, &heabObjectReferencesCallback, &t);
+	stdout_message("\n");
+	printObject(env, object);
 	
 	return 0;
 
@@ -835,7 +592,6 @@ void printCapabilities(jvmtiCapabilities capabilities)
 		capabilities.can_generate_resource_exhaustion_threads_events);
 }
 
-
 JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv *env, jobject callerObject)
 {
 	jclass klass;
@@ -852,23 +608,6 @@ JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv *env
 
 	if (klass != nullptr)
 	{
-
-		/** Heap 1.1 API **/
-
-		jvmtiHeapCallbacks callbacks;
-		(void)memset(&callbacks, 0, sizeof(callbacks));		
-		callbacks.heap_reference_callback = &cbHeapReference;
-		callbacks.heap_iteration_callback = &cbHeapIteration;		
-		callbacks.primitive_field_callback = &cbPrimitivField;
-		callbacks.array_primitive_value_callback = &cbArrayPrimitiveValue;
-		callbacks.string_primitive_value_callback = &cbStringPrimitiveValue;
-		
-
-		/** Heap 1.0 API **/
-
-		//err = gdata->jvmti->IterateOverHeap(JVMTI_HEAP_OBJECT_TAGGED, &heabObjectCallback, &count);
-		//check_jvmti_error(gdata->jvmti, err, "iterate over heap");
-
 		auto t = new Tag();
 		auto tag_ptr = (ptrdiff_t)(void*)&t;
 
@@ -877,12 +616,6 @@ JNIEXPORT jint JNICALL Java_org_zheltkov_heapview_Heapview_instances(JNIEnv *env
 
 		err = gdata->jvmti->IterateOverInstancesOfClass(klass, JVMTI_HEAP_OBJECT_UNTAGGED, &heabObjectCallback, &count);
 		check_jvmti_error(gdata->jvmti, err, "iterate over instances of class");
-
-		auto tt = new Tag();
-		err = gdata->jvmti->IterateOverReachableObjects(&heapRootCallback, &stackReferenceCallback, &heabObjectReferencesCallback, &tt);
-		check_jvmti_error(gdata->jvmti, err, "iterate over reachable objects");	    
-
-
 	}
 
 	return count;

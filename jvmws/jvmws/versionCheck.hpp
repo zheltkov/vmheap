@@ -8,6 +8,20 @@
 #include <ibmjvmti.h>
 
 
+typedef struct Tag
+{
+	jmethodID method;
+	int count;
+	char* name;
+	char* value;
+	jboolean isArray;
+	jint hashCode;	
+	std::vector<Tag*> ref_back_tags;	
+	std::vector<Tag*> ref_next_tags;
+} Tag;
+
+void printTag(Tag* tag);
+
 #ifdef __cplusplus
 extern "C"
 {

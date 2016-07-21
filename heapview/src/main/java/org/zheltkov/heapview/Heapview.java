@@ -1,5 +1,6 @@
 package org.zheltkov.heapview;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -8,18 +9,22 @@ import java.util.HashMap;
  */
 public class Heapview {
 
-    private String value = "test static value";
+    private String value = "";
 
     private ArrayList<Heapview> heapview = new ArrayList<Heapview>();
 
     public Heapview ref;
 
+    public Heapview(String value) {
+        this.value = value;
+    }
+
     public static void main(String[] args) {
 
-        Heapview heapview1 = new Heapview();
-        Heapview heapview2 = new Heapview();
-        Heapview heapview3 = new Heapview();
-        Heapview heapview4 = new Heapview();
+        Heapview heapview1 = new Heapview("heapview1");
+        Heapview heapview2 = new Heapview("heapview2");
+        Heapview heapview3 = new Heapview("heapview3");
+        Heapview heapview4 = new Heapview("heapview4");
 
 //      heapview1.addHeapview(heapview2);
 //      heapview1.addHeapview(heapview3);
@@ -35,15 +40,19 @@ public class Heapview {
         //heapview1.ref = heapview3;
 
 
-        HashMap<String, Heapview> map = new HashMap<String, Heapview>();
-        map.put("obj1", heapview1);
+        HashMap<String, ArrayList> map = new HashMap<>();
+        ArrayList<Heapview> heapList = new ArrayList<>();
+        map.put("list", heapList);
 
-
-        heapview1.references(map);
+        heapList.add(heapview1);
+        heapList.add(heapview3);
+        heapList.add(heapview4);
 
         heapview1.ref = heapview2;
         heapview1.addHeapview(heapview2);
-        //heapview1.referenceInfo();
+        heapview1.addHeapview(heapview3);
+
+        heapview1.references(map);
 
         heapview1.test();
         heapview2.test();
